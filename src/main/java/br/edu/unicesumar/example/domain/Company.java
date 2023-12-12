@@ -1,5 +1,4 @@
 package br.edu.unicesumar.example.domain;
-
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.HashSet;
@@ -41,77 +40,26 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Users implements UserDetails {
-
-    private static final long serialVersionUID = 1L;
-
+public class Company {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Builder.Default
-    @Enumerated(EnumType.STRING)
-    @ElementCollection(targetClass = Roles.class, fetch = FetchType.EAGER)
-    @JsonProperty(access = Access.READ_ONLY)
-    private Set<Roles> roles = new HashSet<>();
+    @NotEmpty
+    private String RazaoSocial;
+    @NotEmpty
+    private String Fantasia;
+    @NotEmpty
+    private String CNPJ;
 
-    @NotEmpty
-    private String FisrtName;
-    @NotEmpty
-    private String LastName;
-    @NotEmpty
-    private String DocumentNumber;
-    
     @Email
     private String email;
     @NotEmpty
     private String Phone;
-    @NotEmpty
-    private String Birthday;
-    @NotNull
-    private int IsAgreeTermsConditions;
-    @NotEmpty
-    private String CreatedAt;
-    @NotEmpty
-    @Column(unique = true, updatable = false)
-    private String username;
 
-    @NotEmpty
-    @JsonProperty(access = Access.WRITE_ONLY)
-    private String password;
+    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
+    private Set<Address> addresses = new HashSet<>();
 
-    @OneToMany(mappedBy = "users", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "company", fetch = FetchType.LAZY)
     private Set<UserManagement> userManagements;
-    @Override
-    @JsonIgnore
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return Stream.concat(roles.stream(), roles.stream()
-                .map(Roles::getCompositeRoles).flatMap(Set::stream))
-                .collect(Collectors.toSet());
-    }
-
-    @Override
-    @JsonIgnore
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    @JsonIgnore
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    @JsonIgnore
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
-
-    @Override
-    @JsonIgnore
-    public boolean isEnabled() {
-        return true;
-    }
-
 }
