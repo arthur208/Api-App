@@ -33,33 +33,38 @@ public class AuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        Optional.ofNullable(request.getHeader("Authorization")).ifPresent(authorization -> {
-            String bearer = "Bearer ";
+        String authorizationHeader = request.getHeader("Authorization");
+        String refreshTokenHeader = request.getHeader("Refresh-Token");
 
-            if (!authorization.startsWith(bearer)) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Expected Bearer prefix to authorization header value!");
-            }
-
-            Jwt jwtToken = new Jwt(authorization.replace(bearer, ""));
-
-            if (tokenTool.validateJwtToken(jwtToken.getToken())) {
-                String username = tokenTool.getUsernameFromToken(jwtToken);
-
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            String token = authorizationHeader.replace("Bearer ", "");
+            if (tokenTool.validateJwtToken(token)) {
+                setSecurityContext(token, request);
+            } else if (refreshTokenHeader != null && tokenTool.validateRefreshToken(refreshTokenHeader)) {
+                // Renovar o token de acesso
+                String username = tokenTool.getUsernameFromToken(new Jwt(refreshTokenHeader));
                 UserDetails userDetails = usersService.loadUserByUsername(username);
+                Jwt newAccessToken = tokenTool.generateToken(userDetails);
 
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
-                        null,
-                        userDetails.getAuthorities());
+                // Configurar o novo token de acesso no contexto de segurança
+                setSecurityContext(newAccessToken.getToken(), request);
 
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                // Opcional: retornar o novo token de acesso no cabeçalho da resposta
+                response.setHeader("New-Access-Token", newAccessToken.getToken());
             } else {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Bearer token is invalid!");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token!");
             }
-        });
+        }
 
         filterChain.doFilter(request, response);
     }
 
+    private void setSecurityContext(String token, HttpServletRequest request) {
+        String username = tokenTool.getUsernameFromToken(new Jwt(token));
+        UserDetails userDetails = usersService.loadUserByUsername(username);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+    }
 }

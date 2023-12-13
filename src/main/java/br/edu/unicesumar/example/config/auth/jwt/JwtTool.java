@@ -28,6 +28,32 @@ public class JwtTool {
     @Value("${escoladeti.auth.jwt.expiration-ms}")
     private int expirationMs;
 
+    @Value("${escoladeti.auth.jwt.refresh-expiration-ms}")
+    private int refreshExpirationMs;
+
+
+    public Jwt generateRefreshToken(UserDetails userDetails) {
+        Map<String, Object> claims = new HashMap<>();
+
+        String refreshToken = Jwts.builder()
+                .setClaims(claims)
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date((new Date()).getTime() + refreshExpirationMs))
+                .signWith(SignatureAlgorithm.HS512, secret).compact();
+
+        return new Jwt(refreshToken);
+    }
+
+    public boolean validateRefreshToken(String token) {
+        try {
+            Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
+            return true;
+        } catch (Exception e) {
+            // Adicione aqui o tratamento de exceções conforme necessário
+            return false;
+        }
+    }
     public Jwt generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
 
